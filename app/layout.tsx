@@ -4,6 +4,7 @@ import "./globals.css";
 import Image from "next/image";
 import Link from "next/link";
 import { Input } from "@nextui-org/input";
+import { Toaster } from "react-hot-toast";
 
 import { NextUIProvider } from "@nextui-org/react";
 
@@ -59,6 +60,8 @@ export default function RootLayout({
           </header>
 
           <main>{children}</main>
+
+          <Toaster position="bottom-center" />
 
           <footer className="relative h-[450px] border-t border-[#E8E8E8] mt-[60px]">
             <div className="px-[130px] absolute w-full bottom-0">

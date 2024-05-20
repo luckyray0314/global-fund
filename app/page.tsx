@@ -1,5 +1,9 @@
+"use client";
+
 import Image from "next/image";
-import { Button, Input, Slider } from "@nextui-org/react";
+import { useState, useEffect, useRef } from "react";
+import { Button, Input, Slider, Tooltip } from "@nextui-org/react";
+import { toast } from "react-hot-toast";
 
 interface Message {
   id: number;
@@ -8,12 +12,164 @@ interface Message {
 }
 
 export default function Home() {
-  // const Message = ({ message }: { message: Message }) => {
-  const Message = ({ sender }: { sender: string }) => {
+  const [prompt, setPrompt] = useState<string>("");
+  const [messages, setMessages] = useState<Message[] | null>(null);
+  const [response, setResponse] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [memoryID, setMemoryID] = useState(
+    Math.floor(new Date().getTime() / 1000)
+  );
+
+  const newTextRef = useRef<HTMLDivElement>(null);
+  const [autoScroll, setAutoScroll] = useState(true);
+  // const [currentHeight, setCurrentHeight] = useState(0);
+  const currentHeight = useRef(100);
+
+  function scrollDomToBottom(messageType: string) {
+    const dom = newTextRef.current;
+    if (dom) {
+      // console.log("dom: ", dom.scrollHeight, currentHeight, messageType);
+      requestAnimationFrame(() => {
+        setAutoScroll(true);
+        if (messageType == "user") {
+          // setCurrentHeight(dom.scrollHeight);
+          currentHeight.current = dom.scrollHeight;
+          dom.scrollTo(0, dom.scrollHeight);
+        } else {
+          // console.log(currentHeight.current);
+          if (currentHeight.current != 350)
+            dom.scrollTo(0, currentHeight.current - 100);
+        }
+      });
+    }
+  }
+
+  useEffect(() => {
+    if (messages) {
+      let len = messages?.length - 1;
+      // console.log("sender------", messages[len].sender);
+      if (autoScroll) {
+        if (messages[len]?.sender == "user") scrollDomToBottom("user");
+        else scrollDomToBottom("bot");
+      }
+    }
+  }, [messages]);
+
+  useEffect(() => {
+    setMemoryID(Math.floor(new Date().getTime() / 1000));
+  }, []);
+
+  // console.log("memoryID---------", memoryID);
+
+  const handleEnter = (e: React.KeyboardEvent<HTMLDivElement> | undefined) => {
+    if (e?.key !== "Enter") {
+      return;
+    }
+    if (e.key === "Enter" && (e.ctrlKey || e.shiftKey)) {
+      setPrompt(prompt + "\n");
+      // return;
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      let user_input = prompt;
+      setPrompt("");
+      if (!loading) sendPrompt(user_input);
+    }
+  };
+
+  const sendUserInput = async () => {
+    let user_input = prompt;
+    setPrompt("");
+    if (!loading) sendPrompt(user_input);
+  };
+
+  const sendPrompt = async (user_input: string) => {
+    // setErrorMessage("");
+
+    if (user_input.trim() == "") {
+      // console.log("prompt is empty");
+      // setErrorMessage("Prompt cannot be empty!");
+      // setLoading(false);
+      return;
+    }
+    setLoading(true);
+    // console.log("-----prompt-------", prompt);
+    let num = 0;
+    if (messages != null) {
+      num = messages?.length;
+      setMessages([...messages, { id: num, text: user_input, sender: "user" }]);
+    } else {
+      num = 0;
+      setMessages([{ id: 0, text: user_input, sender: "user" }]);
+    }
+
+    await fetch("https://starling-api.fly.dev/chat/gf", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        memory_id: memoryID,
+        user_input: user_input,
+      }),
+    })
+      .then((response) => {
+        // console.log("response--------", response.json());
+        return response.json();
+      })
+      .then((data) => {
+        // console.log("Result", data);
+        let links = data?.source_nodes;
+        setResponse(
+          data?.response + "\n\nReferences:\n\n" + links.join("\n\n")
+        );
+        // setOpen(true);
+      })
+      .catch(() => {
+        // console.error(error);
+        setErrorMessage("Network Error! Please try again.");
+      });
+    // scrollDomToBottom();
+    setLoading(false);
+  };
+
+  function copyToClipboard(text: string) {
+    navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        console.log("Text copied to clipboard");
+        toast.success("Successfully copied!");
+      })
+      .catch((error) => {
+        console.error("Error copying text: ", error);
+        toast.error("Error occured!");
+      });
+  }
+
+  useEffect(() => {
+    setPrompt("");
+    if (messages != null && messages?.length > 0)
+      setMessages([
+        ...messages,
+        { id: messages.length, text: response, sender: "bot" },
+      ]);
+  }, [response]);
+
+  useEffect(() => {
+    setPrompt("");
+    if (messages != null && errorMessage != "") {
+      setMessages([
+        ...messages,
+        { id: messages.length, text: errorMessage, sender: "bot" },
+      ]);
+      setErrorMessage("");
+    }
+  }, [errorMessage]);
+
+  const Message = ({ message }: { message: Message }) => {
     return (
       <>
-        {/* {message?.sender == "user" ? ( */}
-        {sender == "user" ? (
+        {message?.sender == "user" ? (
           <div className="w-full flex gap-[10px] items-center mb-[20px]">
             <div className="bg-[#2E4DF9] w-[33px] h-[33px] text-[10px] rounded-full text-center text-white items-center flex justify-center">
               YOU
@@ -22,23 +178,25 @@ export default function Home() {
               className="bg-[#2E4DF9] max-w-[75%] text-white p-[10px] rounded-[10px] text-[13px]"
               style={{ whiteSpace: "pre-line" }}
             >
-              Lorem ipsum dolor sit amet consectetur. Volutpat quam pellentesque
-              rhoncus dolor urna pretium. Euismod sed volutpat.
+              {message.text}
             </div>
           </div>
         ) : (
           <div className="w-full flex justify-end gap-[10px] items-center  mb-[20px]">
-            <Image src={"/copy.png"} width={17} height={17} alt="copy" />
+            <Tooltip showArrow={true} content="Copy answer!">
+              <Button
+                isIconOnly
+                className="w-[50px] h-[50px] bg-transparent rounded-[5px]"
+                onClick={() => copyToClipboard(message.text)}
+              >
+                <Image src={"/copy.png"} width={17} height={17} alt="copy" />
+              </Button>
+            </Tooltip>
             <div
               className="bg-white border-[#2E4DF9] border max-w-[75%] text-black p-[10px] rounded-[10px] text-[13px]"
               style={{ whiteSpace: "pre-line" }}
             >
-              Lorem ipsum dolor sit amet consectetur. Risus orci in faucibus
-              cursus elementum. Ornare et dui in ipsum mi enim amet.
-              Pellentesque tempus morbi sit sit. Consectetur sit adipiscing
-              pretium curabitur eu. Amet ornare pellentesque aliquet vitae
-              posuere platea. Elit adipiscing sed eget diam id viverra. Risus
-              convallis sapien fermentum.
+              {message.text}
             </div>
             <Image
               src={"/logo_icon.png"}
@@ -104,45 +262,55 @@ export default function Home() {
           </Button>
         </div>
         <div className="w-[80%] h-[500px] bg-[#F7F7F7]">
-          <div className="h-[437px] p-[20px]">
-            <div className="w-full flex justify-end gap-[10px] items-center  mb-[20px]">
-              <div className="bg-white border-[#2E4DF9] border w-[75%] text-black p-[10px] rounded-[10px] text-[13px] flex flex-col gap-[6px]">
-                <p>
-                  Here are some pro tips to maximize the effectiveness of using
-                  an AI language model (LLM) chatbot for obtaining the best
-                  answers:
-                </p>
-                <p>
-                  <span className="text-[#2E4DF9] font-extrabold">
-                    Provide Context
-                  </span>
-                  : Give background information that could influence the answer.
-                </p>
-                <p>
-                  <span className="text-[#2E4DF9] font-extrabold">
-                    Be Specific
-                  </span>
-                  : Clearly define your question or problem. Specific details
-                  can help the AI provide more accurate and relevant responses.
-                </p>
-                <p>
-                  <span className="text-[#2E4DF9] font-extrabold">
-                    Break Down Complex Questions
-                  </span>
-                  : If you have a multi-part question, consider breaking it down
-                  into simpler, more direct questions. Use follow-up questions
-                  if the first response does not completely address your needs.
-                </p>
+          <div
+            className="h-[437px] p-[20px] overflow-y-auto custom-scrollbar"
+            ref={newTextRef}
+          >
+            {messages == null ? (
+              <div className="w-full flex justify-end gap-[10px] items-center  mb-[20px] ">
+                <div className="bg-white border-[#2E4DF9] border w-[75%] text-black p-[10px] rounded-[10px] text-[13px] flex flex-col gap-[6px]">
+                  <p>
+                    Here are some pro tips to maximize the effectiveness of
+                    using an AI language model (LLM) chatbot for obtaining the
+                    best answers:
+                  </p>
+                  <p>
+                    <span className="text-[#2E4DF9] font-extrabold">
+                      Provide Context
+                    </span>
+                    : Give background information that could influence the
+                    answer.
+                  </p>
+                  <p>
+                    <span className="text-[#2E4DF9] font-extrabold">
+                      Be Specific
+                    </span>
+                    : Clearly define your question or problem. Specific details
+                    can help the AI provide more accurate and relevant
+                    responses.
+                  </p>
+                  <p>
+                    <span className="text-[#2E4DF9] font-extrabold">
+                      Break Down Complex Questions
+                    </span>
+                    : If you have a multi-part question, consider breaking it
+                    down into simpler, more direct questions. Use follow-up
+                    questions if the first response does not completely address
+                    your needs.
+                  </p>
+                </div>
+                <Image
+                  src={"/logo_icon.png"}
+                  width={33}
+                  height={36}
+                  alt="logo_icon"
+                />
               </div>
-              <Image
-                src={"/logo_icon.png"}
-                width={33}
-                height={36}
-                alt="logo_icon"
-              />
-            </div>
-            <Message sender="user" />
-            <Message sender="bot" />
+            ) : (
+              messages?.map((message) => (
+                <Message key={message.id} message={message} />
+              ))
+            )}
           </div>
           <Input
             placeholder="Type your question ..."
@@ -152,6 +320,9 @@ export default function Home() {
                 "h-[63px] bg-[#F7F7F7] border-t border-black rounded-none pl-[20px] pr-[10px]",
               input: "text-[14px] placeholder:text-[#A7A7A7]",
             }}
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            onKeyDown={handleEnter}
             endContent={
               <div className="flex gap-[10px]">
                 <Image
@@ -160,7 +331,14 @@ export default function Home() {
                   height={40}
                   alt="upload"
                 />
-                <Image src={"/send.svg"} width={40} height={40} alt="send" />
+                <Button
+                  isIconOnly
+                  className="w-[50px] h-[50px] bg-transparent rounded-[5px]"
+                  onClick={sendUserInput}
+                  disabled={loading}
+                >
+                  <Image src={"/send.svg"} width={40} height={40} alt="send" />
+                </Button>
               </div>
             }
           />
