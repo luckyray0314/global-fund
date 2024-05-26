@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
-import { Button, Input, Slider, Tooltip } from "@nextui-org/react";
+import { Button, Input, Slider, Tooltip, Spinner } from "@nextui-org/react";
 import { toast } from "react-hot-toast";
 
 interface Message {
@@ -337,7 +337,16 @@ export default function Home() {
                   onClick={sendUserInput}
                   disabled={loading}
                 >
-                  <Image src={"/send.svg"} width={40} height={40} alt="send" />
+                  {loading ? (
+                    <Spinner color="primary" size="sm" />
+                  ) : (
+                    <Image
+                      src={"/send.svg"}
+                      width={40}
+                      height={40}
+                      alt="send"
+                    />
+                  )}
                 </Button>
               </div>
             }
@@ -346,40 +355,6 @@ export default function Home() {
       </div>
 
       <div className="px-[130px] mt-[60px] flex flex-col gap-[60px]">
-        <div>
-          <h2 className="text-[15px] font-extrabold">Essential Toolkits</h2>
-          <div className="w-full flex gap-[20px] font-sans mt-[20px]">
-            <Button className="w-1/6 h-[71px] border border-black bg-white rounded-[3px] text-black text-[15px] p-[15px] text-wrap">
-              PR onboarding toolkit
-            </Button>
-            <Button className="w-1/6 h-[71px] border border-black bg-white rounded-[3px] text-black text-[15px] p-[15px] text-wrap">
-              COE toolkit
-            </Button>
-            <Button className="w-1/6 h-[71px] border border-black bg-white rounded-[3px] text-black text-[15px] p-[15px] text-wrap">
-              Applying for GF funding toolkit
-            </Button>
-            <Button className="w-1/6 h-[71px] border border-black bg-white rounded-[3px] text-black text-[15px] p-[15px] text-wrap">
-              Grant-making toolkit
-            </Button>
-            <Button className="w-1/6 h-[71px] border border-black bg-white rounded-[3px] text-black text-[15px] p-[15px] text-wrap">
-              Applying for GF funding toolkit
-            </Button>
-            <Button className="w-1/6 h-[71px] border border-black bg-white rounded-[3px] text-black text-[15px] p-[15px] text-wrap">
-              Grant-making toolkit
-            </Button>
-          </div>
-          <Slider
-            aria-label="Player progress"
-            color="foreground"
-            hideThumb={true}
-            defaultValue={20}
-            classNames={{
-              base: "w-full mt-[10px]",
-              track: "h-[9px]",
-              filler: "bg-[#2E4DF9] rounded-[9999px]",
-            }}
-          />
-        </div>
         <div>
           <h2 className="text-[15px] font-extrabold">Essential Toolkits</h2>
           <div className="w-full flex gap-[20px] font-sans mt-[20px]">
